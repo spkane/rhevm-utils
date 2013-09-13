@@ -24,6 +24,7 @@
 
 import sys
 import getopt
+import getpass
 import optparse
 import os
 import time
@@ -43,7 +44,7 @@ osver can be: rhel_6x64, etc
 # Option parsing
 p = optparse.OptionParser("rhev-vm-create.py [arguments]", description=description)
 p.add_option("-u", "--user", dest="username", help="Username to connect to RHEVM API", metavar="admin@internal", default="admin@internal")
-p.add_option("-w", "--password", dest="password", help="Password to use with username", metavar="admin", default="redhat")
+p.add_option("-w", "--password", dest="password", help="Password to use with username", metavar="admin", default="")
 p.add_option("-s", "--server", dest="server", help="RHEV-M server address/hostname to contact", metavar="server", default="127.0.0.1")
 p.add_option("-p", "--port", dest="port", help="API port to contact", metavar="443", default="443")
 p.add_option('-v', "--verbosity", dest="verbosity", help="Show messages while running", metavar='[0-n]', default=0, type='int')
@@ -65,6 +66,9 @@ from rhev_functions import *
 
 baseurl = "https://%s:%s" % (options.server, options.port)
 
+if options.password=="" or options.password==None:
+  options.password=getpass.getpass()
+
 api = apilogin(url=baseurl, username=options.username, password=options.password)
 
 try:
@@ -76,7 +80,7 @@ except:
 # Define VM based on parameters
 if __name__ == "__main__":
     vmparams = params.VM(os=params.OperatingSystem(type_=options.osver), cpu=params.CPU(topology=params.CpuTopology(cores=int(options.vmcpu))), name=options.name, memory=1024 * 1024 * 1024 * int(options.vmmem), cluster=api.clusters.get(name=options.cluster), template=api.templates.get(name="Blank"), type_="server")
-    vmdisk = params.Disk(size=1024 * 1024 * 1024 * int(options.sdsize), wipe_after_delete=True, sparse=True, interface="virtio", type_="System", format="cow", storage_domains=params.StorageDomains(storage_domain=[api.storagedomains.get(name="data_domain")]))
+    vmdisk = params.Disk(storage_domains=params.StorageDomains(storage_domain=[api.storagedomains.get(options.sdtype)]), size=1024 * 1024 * 1024 * int(options.sdsize), wipe_after_delete=True, sparse=True, interface="virtio", bootable=True, format="cow")
     vmnet = params.NIC()
 
     network_gest = params.Network(name=options.vmgest)
